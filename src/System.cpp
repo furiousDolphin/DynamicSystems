@@ -6,7 +6,10 @@ System::System(
     Eigen::VectorXd b_coeffs, 
     Eigen::VectorXd a_coeffs
 ) : 
-    tf_{b_coeffs, a_coeffs}
+    tf_{b_coeffs, a_coeffs},
+    accumulator_{0.0},
+    t_{0.0},
+    dt_{0.0001}
 {
     int m = tf_.b_coeffs.size()-1;
     int n = tf_.a_coeffs.size()-1;
@@ -29,11 +32,16 @@ Eigen::VectorXd System::step_response(const Eigen::VectorXd& t)
 
 Eigen::VectorXd System::impulse_response(const Eigen::VectorXd& t)
 {
-
+    int n = tf_.a_coeffs.size()-1;
+    double a_n = tf_.a_coeffs[n];
+    state_ = Eigen::VectorXd::Zero(n);
+    state_[n-1] = 1.0/a_n;
 }
 
 void System::set_forcing_func(FuncType func)
 {
+    t_ = 0.0; //zeruje t
+
     int N = 16;
     int m = tf_.b_coeffs.size() - 1;
     if ( m < N-1 )
@@ -53,8 +61,6 @@ void System::set_forcing_func(FuncType func)
             X_derivatives[i] = Clenshaw(cheb_coeffs, cheb_range.first);
             cheb_coeffs = D*cheb_coeffs;
         }
-
-
     }
     else 
     { throw std::runtime_error("trzeba dodac mozliwosc rozniczkowania wiecej niz 16 razy"); }
@@ -62,14 +68,38 @@ void System::set_forcing_func(FuncType func)
 
 }
 
-std::pair<double, double> System::do_RK4_step()
+std::pair<double, double> System::do_RK4_step(double dt)
 {
+    double remaining_time = dt;
 
+    while (remaining_time >= dt_)
+    {
+        stepper_.do_step(*this, state_, t_, dt_);
+        t_ += dt_;
+        remaining_time -= dt_;
+    }
+
+    if (remaining_time > 0.0)
+    {
+        stepper_.do_step(*this, state_, t_, remaining_time);
+        t_ += remaining_time;
+    }
+
+    double y = 0.0;
+    for(int i = 0; i < tf_.b_coeffs.size(); ++i) 
+    { y += tf_.b_coeffs[i] * state_[i]; }
+
+    return {t_, y};
 }
 
 void System::operator()(const Eigen::VectorXd& Z, Eigen::VectorXd& dZdt, double t)
 {
+    int n = tf_.a_coeffs.size()-1;
+    double a_n = tf_.a_coeffs[n];
+    double x = forcing_func_.get_x(t);
 
+    dZdt = tf_.M*Z;
+    dZdt[n-1] += x/a_n;
 }
 
 double System::ForcingFunc::get_x(double t)
