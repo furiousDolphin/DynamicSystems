@@ -37,13 +37,12 @@ class System
         struct ForcingFunc
         {
             FuncType func;
-            double get_x(double t);
+            double operator()(double t);
         } forcing_func_;
 
         
         boost::numeric::odeint::runge_kutta4<Eigen::VectorXd> stepper_;
         Eigen::VectorXd state_;
-        double accumulator_;
         double t_;
         double dt_;
 };
