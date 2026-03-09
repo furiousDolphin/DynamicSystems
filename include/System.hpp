@@ -22,7 +22,7 @@ class System
         Eigen::VectorXd impulse_response(const Eigen::VectorXd& t);
 
         void set_forcing_func(FuncType func);
-        std::pair<double, double> do_RK4_step();
+        std::pair<double, double> do_RK4_step(double dt = 0.001);
 
     private:
         void operator()(const Eigen::VectorXd& Z, Eigen::VectorXd& dZdt, double t);
@@ -39,6 +39,13 @@ class System
             FuncType func;
             double get_x(double t);
         } forcing_func_;
+
+        
+        boost::numeric::odeint::runge_kutta4<Eigen::VectorXd> stepper_;
+        Eigen::VectorXd state_;
+        double accumulator_;
+        double t_;
+        double dt_;
 };
 
 #endif
