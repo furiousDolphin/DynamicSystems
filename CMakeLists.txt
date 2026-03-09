@@ -74,7 +74,8 @@ target_compile_definitions(base_module_library INTERFACE WITHOUT_NUMPY SDL_MAIN_
 
 add_executable(DynamicSystemsApp 
   main.cpp
-  src/System.cpp  )
+  src/System.cpp
+  src/ChebFunc.cpp  )
 target_link_libraries(DynamicSystemsApp PRIVATE base_module_library)
 
 set_target_properties(DynamicSystemsApp PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE") #./build/DynamicSystemsApp.exe
