@@ -102,7 +102,8 @@ target_compile_definitions(base_module_library INTERFACE WITHOUT_NUMPY SDL_MAIN_
 pybind11_add_module(module_uno 
     modules/module_uno.cpp 
     src/System.cpp
-    src/ChebFunc.cpp)
+    src/ChebFunc.cpp
+    src/ValueManager.cpp)
 target_link_libraries(module_uno PRIVATE base_module_library)
 
 #---------------------------------------------------------

@@ -71,6 +71,7 @@ class Plot(IPlot):
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.title(title)
+        plt.axis('equal')
         plt.grid(True)
         plt.legend()
 
@@ -96,6 +97,7 @@ class Subplot(IPlot):
         ax.set_ylabel(ylabel)
         ax.set_title(title)
         ax.grid(True)
+        ax.set_aspect('equal', adjustable='box')
         ax.legend()    
 
 class SubplotManager():

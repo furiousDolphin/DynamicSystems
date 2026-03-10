@@ -10,6 +10,7 @@
 #include "ChebFunc.hpp"
 
 #include "Settings.hpp"
+#include "ValueManager.hpp"
 
 class System
 {
@@ -25,19 +26,21 @@ class System
         std::pair<double, double> do_RK4_step(double dt = 0.001);
         void operator()(const Eigen::VectorXd& Z, Eigen::VectorXd& dZdt, double t);
 
-    private:
+    protected:
+        void update();
 
         struct TransferFunc
         {
             Eigen::VectorXd b_coeffs;
             Eigen::VectorXd a_coeffs;
             Eigen::MatrixXd M;
+            void create_M();
         } tf_;
 
         struct ForcingFunc
         {
-            FuncType func;
-            double operator()(double t);
+            std::function<double(double)> func;
+            inline double operator()(double t);
         } forcing_func_;
 
         
@@ -45,6 +48,29 @@ class System
         Eigen::VectorXd state_;
         double t_;
         double dt_;
+};
+
+
+class SecondOrderSystem : public System
+{
+    public:
+        SecondOrderSystem();
+
+        using DoubleSetter = std::function<void(double)>;
+        using DoubleGetter = std::function<double(void)>;
+
+        struct Params
+        {
+            ValueManager zeta;
+            ValueManager r;
+            ValueManager f;
+        };
+
+        const Params& get_params() const;
+
+    private:
+        void update();
+        Params params_;
 };
 
 #endif
