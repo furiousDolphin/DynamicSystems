@@ -17,7 +17,7 @@ class System
     public:
         System(Eigen::VectorXd b_coeffs, Eigen::VectorXd a_coeffs);
 
-        using FuncType = std::variant<std::function<double(double)>, std::function<double(void)>>;
+        using FuncType = std::variant<std::function<double(void)>, std::function<double(double)>>;
 
         Eigen::VectorXd step_response(const Eigen::VectorXd& t_dense);
         Eigen::VectorXd impulse_response(const Eigen::VectorXd& t_dense);
@@ -27,7 +27,7 @@ class System
         void operator()(const Eigen::VectorXd& Z, Eigen::VectorXd& dZdt, double t);
 
     protected:
-        void update();
+        void virtual update();
 
         struct TransferFunc
         {
@@ -69,7 +69,7 @@ class SecondOrderSystem : public System
         const Params& get_params() const;
 
     private:
-        void update();
+        void update() override;
         Params params_;
 };
 

@@ -14,10 +14,12 @@ class ValueManager
         ValueManager();
         double get_val() const;
         void set_val(double new_val);
+        bool check_and_reset_dirty();
         DoubleGetter getter;
         DoubleSetter setter;
     private:
         double val_;
+        bool dirty_;
 };
 
 #endif

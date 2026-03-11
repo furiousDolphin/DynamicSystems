@@ -11,7 +11,7 @@ System::System(
 ) : 
     tf_{b_coeffs, a_coeffs},
     t_{0.0},
-    dt_{0.0005}
+    dt_{0.0002}
 {
 
 }
@@ -30,10 +30,13 @@ void System::TransferFunc::create_M()
 }
 
 void System::update()
-{}
+{
+    tf_.create_M();
+}
 
 Eigen::VectorXd System::step_response(const Eigen::VectorXd& t_dense)
 {
+    this->update();
     forcing_func_.func = [](double t){return 1.0;};
 
     int n = tf_.a_coeffs.size() - 1;
@@ -52,6 +55,7 @@ Eigen::VectorXd System::step_response(const Eigen::VectorXd& t_dense)
 
 Eigen::VectorXd System::impulse_response(const Eigen::VectorXd& t_dense)
 {
+    this->update();
     forcing_func_.func = [](double t){return 0.0;};
 
     int n = tf_.a_coeffs.size()-1;
@@ -71,14 +75,14 @@ Eigen::VectorXd System::impulse_response(const Eigen::VectorXd& t_dense)
 void System::set_forcing_func(FuncType func)
 {
     std::visit(overloaded{
-        [&](std::function<double(double)> double_func)
-        {forcing_func_.func = double_func;},
         [&](std::function<double(void)> void_func)
-        {forcing_func_.func = [void_func](double t){return void_func();};}
+        {forcing_func_.func = [void_func](double t){return void_func();};},
+        [&](std::function<double(double)> double_func)
+        {forcing_func_.func = double_func;}
     }, func);
 
     t_ = 0.0;
-    tf_.create_M();
+    this->update();
     int N = 16;
     int m = tf_.b_coeffs.size() - 1;
     int n = tf_.a_coeffs.size() - 1;
@@ -86,10 +90,6 @@ void System::set_forcing_func(FuncType func)
     Eigen::VectorXd X_derivatives_vect = Eigen::VectorXd::Zero(n + 1); 
 
     std::visit(overloaded{
-        [&](std::function<double(double)> double_func)
-        { 
-            X_derivatives_vect[0] = double_func(0.0); 
-        },
         [&](std::function<double(void)> void_func)
         { 
             if (m < N-1) 
@@ -110,7 +110,9 @@ void System::set_forcing_func(FuncType func)
             } 
             else 
             { throw std::runtime_error("..."); }
-        }
+        },
+        [&](std::function<double(double)> double_func)
+        { X_derivatives_vect[0] = double_func(0.0); }
     }, func);
 
     Eigen::MatrixXd X_derivatives_matrix = Eigen::MatrixXd::Zero(n, n);
@@ -160,7 +162,7 @@ std::pair<double, double> System::do_RK4_step(double dt)
     }
 
     double y = 0.0;
-    for(int i = 0; i < tf_.b_coeffs.size(); ++i) 
+    for(int i = 0; i < tf_.a_coeffs.size()-1; ++i) 
     { y += tf_.b_coeffs[i] * state_[i]; }
 
     return {t_, y};
@@ -182,7 +184,7 @@ inline double System::ForcingFunc::operator()(double t)
 
 SecondOrderSystem::SecondOrderSystem():
     System(
-        (Eigen::VectorXd{3} << 1.0, 0.0, 0.0).finished(),
+        (Eigen::VectorXd{2} << 1.0, 0.0).finished(),
         (Eigen::VectorXd{3} << 1.0, 2.0, 1.0).finished())
 {
 
@@ -190,25 +192,36 @@ SecondOrderSystem::SecondOrderSystem():
 
 void SecondOrderSystem::update()
 {
-    double f = params_.f.get_val();
-    double r = params_.r.get_val();
-    double zeta = params_.zeta.get_val();
+    auto& [zeta_vm, r_vm, f_vm] = params_;
 
-    double PI = std::numbers::pi;
-    double w = 2*PI*f;
+    if 
+    ( 
+        zeta_vm.check_and_reset_dirty() || 
+        r_vm.check_and_reset_dirty() || 
+        f_vm.check_and_reset_dirty() 
+    )
 
-    double k1 = (2*zeta)/w;
-    double k2 = 1/(w*w);
-    double k3 = (zeta*r)/w;    
+    {
+        double zeta = zeta_vm.get_val();
+        double r = r_vm.get_val();
+        double f = f_vm.get_val();
 
-    tf_.b_coeffs[0] = 1.0;
-    tf_.b_coeffs[1] = k3;
+        double PI = std::numbers::pi;
+        double w = 2*PI*f;
 
-    tf_.a_coeffs[0] = 1.0;
-    tf_.a_coeffs[1] = k1; 
-    tf_.a_coeffs[2] = k2;
+        double k1 = (2*zeta)/w;
+        double k2 = 1/(w*w);
+        double k3 = (zeta*r)/w;    
 
-    tf_.create_M();
+        tf_.b_coeffs[0] = 1.0;
+        tf_.b_coeffs[1] = k3;
+
+        tf_.a_coeffs[0] = 1.0;
+        tf_.a_coeffs[1] = k1; 
+        tf_.a_coeffs[2] = k2;
+
+        tf_.create_M();
+    }
 }
 
 const SecondOrderSystem::Params& SecondOrderSystem::get_params() const

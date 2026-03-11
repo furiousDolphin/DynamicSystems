@@ -9,60 +9,47 @@ if build_path not in sys.path:
     sys.path.append(build_path)
 
 import numpy as np
-import matplotlib.pyplot as plt
-import module_uno as m  
-from scripts import Plots
 from typing import Callable
+from PyQt6.QtWidgets import QApplication
+
+import module_uno as m  
+from scripts.Plots import Plot
+from scripts.Oscilloscope import Oscilloscope
 
 #-------------------------------------------------
 
-from dataclasses import dataclass, field
+app: QApplication = QApplication(sys.argv)
+square_wave: Callable[[float], float] = lambda t: 1.0 if np.sin(t) > 0 else 0.0 
+u: m.ValueManager = m.ValueManager()
+y: m.ValueManager = m.ValueManager()
+scope: Oscilloscope = Oscilloscope(y.getter) 
+scope.show()
 
-FloatGetter = Callable[[], float]
-FloatSetter = Callable[[float], None]
+system: m.SecondOrderSystem = m.SecondOrderSystem()  
+(zeta, r, f) = system.get_params()
+zeta.set_val(0.4)
+r.set_val(0.1)
+f.set_val(5.0)
+u.set_val(square_wave(0.0))
+system.set_forcing_func(u.getter)
 
-# @dataclass
-# class ValueManager():
-#     val: float
-#     getter: FloatGetter = field(init=False)
-#     setter: FloatSetter = field(init=False)
-
-#     def __post_init__(self):
-#         def _setter_func(new_val: float) -> None:
-#             self.val = new_val
-#         self.getter = lambda: self.val
-#         self.setter = _setter_func
-    
-# forcing_func: ValueManager = ValueManager()
-# response_func: ValueManager = ValueManager()
-
-#-------------------------------------------------
-
-zeta: float = 0.4
-r: float = 0.1
-f: float = 5.0
-
-k1: float = zeta/(np.pi*f)
-k2: float = 1/(2*np.pi*f)**2
-k3: float = (zeta*r)/(2*np.pi*f)
-
-b_coeffs = np.array([1.0, k3]) 
-a_coeffs = np.array([1.0, k1, k2])
-
-system: m.System = m.System(b_coeffs, a_coeffs)
-f: Callable[[float], float] = lambda t: 1.0 if np.sin(t) > 0 else 0.0  
-system.set_forcing_func(f)
 
 n: int = 1000
-t_dense: np.ndarray = np.zeros(n)
-y_dense: np.ndarray = np.zeros(n)
+dt:float = 20.0/n
+t: float = 0.0
 
-dt:float = 30/n
-for i in range(n):
-    (t, y) = system.do_RK4_step(dt)
-    t_dense[i]=t
-    y_dense[i]=y
+# t_dense: np.ndarray = np.linspace(0, 20, n)
+# y_dense = system.step_response(t_dense)
 
-plot = Plots.Plot((500, 500))
-plot.add(t_dense, y_dense)
-plot.show()
+# plot: Plot = Plot((500, 500))
+# plot.add(t_dense, y_dense)
+# plot.show()
+
+for _ in range(n):
+    u.set_val(square_wave(t))
+    (t_new, y_new) = system.do_RK4_step(dt)
+    y.set_val(y_new)
+    t = t_new
+    scope.update()
+    app.processEvents()
+sys.exit(0)
