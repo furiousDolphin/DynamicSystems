@@ -72,37 +72,41 @@ target_link_libraries(base_module_library INTERFACE
 target_compile_definitions(base_module_library INTERFACE WITHOUT_NUMPY SDL_MAIN_HANDLED)
 
 
-add_executable(DynamicSystemsApp 
-  main.cpp
-  src/System.cpp
-  src/ChebFunc.cpp  )
-target_link_libraries(DynamicSystemsApp PRIVATE base_module_library)
+# add_executable(DynamicSystemsApp 
+#   main.cpp
+#   src/System.cpp
+#   src/ChebFunc.cpp  )
+# target_link_libraries(DynamicSystemsApp PRIVATE base_module_library)
 
-set_target_properties(DynamicSystemsApp PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE") #./build/DynamicSystemsApp.exe
+# set_target_properties(DynamicSystemsApp PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE") #./build/DynamicSystemsApp.exe
 
-set(SDL2_DLLS
-    "${SDL2_PATH}/lib/x64/SDL2.dll"
-    "${SDL2_PATH}/lib/x64/SDL2_image.dll"
-    "${SDL2_PATH}/lib/x64/SDL2_ttf.dll"
-    "${SDL2_PATH}/lib/x64/SDL2_mixer.dll"
-)
+# set(SDL2_DLLS
+#     "${SDL2_PATH}/lib/x64/SDL2.dll"
+#     "${SDL2_PATH}/lib/x64/SDL2_image.dll"
+#     "${SDL2_PATH}/lib/x64/SDL2_ttf.dll"
+#     "${SDL2_PATH}/lib/x64/SDL2_mixer.dll"
+# )
 
-foreach(dll ${SDL2_DLLS})
-    add_custom_command(TARGET DynamicSystemsApp POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${dll}"
-        $<TARGET_FILE_DIR:DynamicSystemsApp>
-        COMMENT "Kopiowanie ${dll} do folderu build..."
-    )
-endforeach()
+# foreach(dll ${SDL2_DLLS})
+#     add_custom_command(TARGET DynamicSystemsApp POST_BUILD
+#         COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#         "${dll}"
+#         $<TARGET_FILE_DIR:DynamicSystemsApp>
+#         COMMENT "Kopiowanie ${dll} do folderu build..."
+#     )
+# endforeach()
 
 
 #---------------------------------------------------------
 
-# pybind11_add_module(module_uno modules/module_uno.cpp src/MatrixBuilders.cpp)
-# target_link_libraries(module_uno PRIVATE base_module_library)
+pybind11_add_module(module_uno 
+    modules/module_uno.cpp 
+    src/System.cpp
+    src/ChebFunc.cpp
+    src/ValueManager.cpp)
+target_link_libraries(module_uno PRIVATE base_module_library)
 
-# #---------------------------------------------------------
+#---------------------------------------------------------
 
 # pybind11_add_module(module_dos modules/module_dos.cpp src/WaveEquation.cpp src/MatrixBuilders.cpp) 
 # target_link_libraries(module_dos PRIVATE base_module_library)
