@@ -27,9 +27,9 @@ scope.show()
 
 system: m.SecondOrderSystem = m.SecondOrderSystem()  
 (zeta, r, f) = system.get_params()
-zeta.set_val(0.4)
+zeta.set_val(0.3)
 r.set_val(0.1)
-f.set_val(5.0)
+f.set_val(1.0)
 u.set_val(square_wave(0.0))
 system.set_forcing_func(u.getter)
 
