@@ -20,11 +20,25 @@ PYBIND11_MODULE(module_uno, m)
           .def("step_response", 
                &System::step_response, 
                "oblicza przebieg odpowiedzi skokowej dla podanego wektora czasu",
-               py::arg("t_dense"))
+               py::arg("total_time"),
+               py::arg("n"))
           .def("impulse_response", 
                &System::impulse_response, 
                "oblicza przebieg odpowiedzi impulsowej dla podanego wektora czasu",
-               py::arg("t_dense"))
+               py::arg("total_time"),
+               py::arg("n"))
+          .def("nyquist_data",
+               &System::nyquist_data,
+               "",
+               py::arg("D1"),
+               py::arg("D2"),
+               py::arg("n"))
+          .def("bode_data",
+               &System::bode_data,
+               "",
+               py::arg("D1"),
+               py::arg("D2"),
+               py::arg("n"))
           .def("set_forcing_func", 
                &System::set_forcing_func, 
                "",

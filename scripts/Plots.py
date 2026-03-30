@@ -3,16 +3,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 from typing import NamedTuple, Dict, Any, Tuple
 from dataclasses import dataclass, asdict
+from enum import Enum
 
-
+class AxisType(Enum):
+    LIN = 0
+    LOG = 1
 
 #----------------------------------------
 
 @dataclass
 class Series:
-
     x: np.ndarray
     y: np.ndarray
+
+    x_scale: str = 'linear'
+    y_scale: str = 'linear'
 
     label: str = ""
     color: str = "blue"
@@ -36,12 +41,12 @@ class PlotMeta():
     xlabel: str = "x"
     ylabel: str = "y"
     title: str = "title"
+    equal_aspect: bool = False
 
     def __iter__(self):
-        return iter(( self.xlabel, self.ylabel, self.title ))
+        return iter(( self.xlabel, self.ylabel, self.title, self.equal_aspect ))
 
 class IPlot():
-    
     def __init__(self, **kwargs):
         self._plot_meta = PlotMeta(**kwargs)
         self._serieses = []
@@ -61,17 +66,22 @@ class Plot(IPlot):
         for series in self._serieses:
 
             data: Dict[Any, Any] = asdict(series)
+
             x: np.ndarray = data.pop("x")
             y: np.ndarray = data.pop("y")
 
+            x_scale: AxisType = data.pop("x_scale")
+            y_scale: AxisType = data.pop("y_scale")
+
             plt.plot(x, y, **data)
 
-        
         xlabel, ylabel, title = self._plot_meta
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.title(title)
-        plt.axis('equal')
+        #plt.axis('equal')
+        plt.xscale(x_scale)
+        plt.yscale(y_scale)
         plt.grid(True)
         plt.legend()
 
@@ -86,18 +96,24 @@ class Subplot(IPlot):
         for series in self._serieses:
 
             data: Dict[Any, Any] = asdict(series)
+
             x: np.ndarray = data.pop("x")
             y: np.ndarray = data.pop("y")
 
+            x_scale: AxisType = data.pop("x_scale")
+            y_scale: AxisType = data.pop("y_scale")
+
             ax.plot(x, y, **data)
 
-        
-        xlabel, ylabel, title = self._plot_meta
+        xlabel, ylabel, title, equal_aspect = self._plot_meta
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(title)
+        ax.set_xscale(x_scale)
+        ax.set_yscale(y_scale)
         ax.grid(True)
-        ax.set_aspect('equal', adjustable='box')
+        if equal_aspect:
+            ax.set_aspect('equal', adjustable='datalim')
         ax.legend()    
 
 class SubplotManager():

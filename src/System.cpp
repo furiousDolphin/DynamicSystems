@@ -1,5 +1,7 @@
 
 #include <numbers>
+#include <complex>
+#include <unsupported/Eigen/Polynomials>
 
 #include "System.hpp"
 
@@ -34,43 +36,91 @@ void System::update()
     tf_.create_M();
 }
 
-Eigen::VectorXd System::step_response(const Eigen::VectorXd& t_dense)
+std::array<Eigen::VectorXd, 2> System::step_impulse_helper(double total_time, int n, ResponseType response_type)
 {
     this->update();
-    forcing_func_.func = [](double t){return 1.0;};
-
-    int n = tf_.a_coeffs.size() - 1;
     double a_0 = tf_.a_coeffs[0];
-    state_ = Eigen::VectorXd::Zero(n);
-    //state_[0] = 1.0/a_0; // to daje mi że uklad od poczatku jest w stanie ustalonym
+    int eq_order = tf_.a_coeffs.size()-1;
+    state_ = Eigen::VectorXd::Zero(eq_order);
 
-    Eigen::VectorXd Y = Eigen::VectorXd::Zero(t_dense.size());
-    for (int i = 1; i < t_dense.size(); i++)
-    { 
-        auto [_, y] = this->do_RK4_step(t_dense[i]-t_dense[i-1]); 
-        Y[i] = y;
+    switch (response_type)
+    {
+        case ResponseType::IMPULSE:
+            forcing_func_.func = [](double t){return 0.0;};
+            state_[eq_order-1] = 1/a_0;
+            break;
+        case ResponseType::STEP:
+            forcing_func_.func = [](double t){return 1.0;};
+            break;       
     }
-    return Y;
+
+    Eigen::VectorXd t_dense = Eigen::VectorXd::LinSpaced(n, 0.0, total_time);
+    Eigen::VectorXd y_dense = Eigen::VectorXd::Zero(n);
+
+    double dt = total_time/n;
+    for (int idx = 0; idx<n; idx++)
+    {
+        auto [cur_t, cur_y] = this->do_RK4_step(dt);
+        y_dense[idx] = cur_y;
+    }
+    return {t_dense, y_dense};
 }
 
-Eigen::VectorXd System::impulse_response(const Eigen::VectorXd& t_dense)
+std::array<Eigen::VectorXd, 3> System::nyquist_bode_helper(double D1, double D2, int n, CharacteristicType characteristic_type)
 {
     this->update();
-    forcing_func_.func = [](double t){return 0.0;};
+    double PI = std::numbers::pi;
 
-    int n = tf_.a_coeffs.size()-1;
-    double a_n = tf_.a_coeffs[n];
-    state_ = Eigen::VectorXd::Zero(n);
-    state_[n-1] = 1.0/a_n;
+    std::function<double(std::complex<double>)> f1 = nullptr;
+    std::function<double(std::complex<double>)> f2 = nullptr;
 
-    Eigen::VectorXd Y = Eigen::VectorXd::Zero(t_dense.size());
-    for (int i = 1; i < t_dense.size(); i++)
-    { 
-        auto [_, y] = this->do_RK4_step(t_dense[i]-t_dense[i-1]); 
-        Y[i] = y;
+    switch (characteristic_type)
+    {
+        case CharacteristicType::NYQUIST:
+            f1 = [&](std::complex<double> z){return z.real();};
+            f2 = [&](std::complex<double> z){return z.imag();};
+            break;
+        case CharacteristicType::BODE:
+            f1 = [&](std::complex<double> z){return 20.0*std::log10(std::abs(z));};
+            f2 = [&](std::complex<double> z){return (180.0/PI)*std::arg(z);};
+            break;       
     }
-    return Y;
+
+    Eigen::ArrayXd powers = Eigen::ArrayXd::LinSpaced(n, D1, D2);
+    double ln10 = Eigen::numext::log(10.0);
+
+    Eigen::VectorXd w_dense = Eigen::exp(powers*ln10).matrix();
+    Eigen::VectorXd series1 = Eigen::VectorXd::Zero(n);
+    Eigen::VectorXd series2 = Eigen::VectorXd::Zero(n);
+
+    std::complex<double> imag_unit{0.0, 1.0};
+
+    for (int idx = 0; idx < n; idx++)
+    {
+        double cur_w = w_dense[idx];
+        std::complex<double> numerator = Eigen::poly_eval(tf_.b_coeffs, imag_unit*cur_w);
+        std::complex<double> denominator = Eigen::poly_eval(tf_.a_coeffs, imag_unit*cur_w);
+
+        std::complex<double> val = numerator/denominator;
+        series1[idx] = f1(val);
+        series2[idx] = f2(val);
+    }
+
+    return {w_dense, series1, series2};
 }
+
+std::array<Eigen::VectorXd, 2> System::impulse_response(double total_time, int n)
+{ return this->step_impulse_helper(total_time, n, ResponseType::IMPULSE); }
+
+std::array<Eigen::VectorXd, 2> System::step_response(double total_time, int n)
+{ return this->step_impulse_helper(total_time, n, ResponseType::STEP); }
+
+std::array<Eigen::VectorXd, 3> System::nyquist_data(double D1, double D2, int n)
+{ return this->nyquist_bode_helper(D1, D2, n, CharacteristicType::NYQUIST); }   
+
+std::array<Eigen::VectorXd, 3> System::bode_data(double D1, double D2, int n)
+{ return this->nyquist_bode_helper(D1, D2, n, CharacteristicType::BODE); }
+
 
 void System::set_forcing_func(FuncType func)
 {
